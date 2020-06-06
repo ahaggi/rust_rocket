@@ -1,0 +1,15 @@
+Responses
+
+  Responder https://rocket.rs/v0.4/guide/responses/#responder
+  Streaming https://rocket.rs/v0.4/guide/responses/#streaming
+    
+
+
+  JSON 
+    The Json responder in rocket_contrib allows you to easily respond with well-formed JSON data: simply return a value of type Json<T> where T is the type of a structure to serialize into JSON. The type T must implement the Serialize trait from serde.
+
+  Templates https://rocket.rs/v0.4/guide/responses/#templates
+
+  Typed URIs https://rocket.rs/v0.4/guide/responses/#typed-uris
+
+  Conversions https://rocket.rs/v0.4/guide/responses/#conversions

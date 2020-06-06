@@ -1,0 +1,2 @@
+Fairings 
+  Fairings are Rocket's approach to structured middleware. With fairings, your application can hook into the request lifecycle to record or rewrite information about incoming requests and outgoing responses.

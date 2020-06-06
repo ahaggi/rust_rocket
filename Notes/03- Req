@@ -1,0 +1,246 @@
+
+Requests
+    a route attribute and function signature specify what must be true about a request in order for the route's handler to be called.
+  
+  Reinterpreting // TODO 
+    Because HTML forms can only be directly submitted as GET or POST requests, Rocket reinterprets request methods under certain conditions. If a POST request contains a body of Content-Type: application/x-www-form-urlencoded and the form's first field has the name _method and a valid HTTP method name as its value (such as "PUT"), that field's value is used as the method for the incoming request. This allows Rocket applications to submit non-POST forms. The todo example makes use of this feature to submit PUT and DELETE requests from a web form.
+
+    
+
+  RawStr is a special type, provided by Rocket. 
+    Unlike other string types such as String, &str, and Cow<str>; The type "RawStr" represents an unsanitized, unvalidated, and undecoded raw string from an HTTP message. You can use "RawStr" as "parameter guards" if you want direct but potentially unsafe access to the string param.
+
+
+  static paths: "/some_path"
+  
+
+  dynamic paths: 
+    parameter guards: like <col> and <id> in "/some_path/<col>/id/<id>", they can be of any type, including your own, as long as the type implements the "FromParam" trait.
+
+    use angle brackets around "dynamic segment"/variables; Any number of "dynamic segment"/variables are allowed. A path segment 
+        "/some_path/<name>" any req with 2 non-empty segments, where the 1st segment is "some_path".
+        "/some_path/<col>/id/<id>" any req with 4 non-empty segments, where the 1st is "some_path" & the 3rd is "id".
+
+    Segments guards: 
+      <rest_of_path..> in the path "/some_path/<rest_of_path..>"
+      You can also match against multiple segments by using <param..> in a route path. The type of such parameters, known as segments guards, must implement FromSegments. A segments guard must be the final component of a path: any text after a segments guard will result in a compile-time error.
+
+        #[get("/abc/<rest_path..>")]
+        fn any_path_starts_w_abc(rest_path: PathBuf) -> String {
+          let s = rest_path.to_str().unwrap();
+          let mut res = String::from("the rest of the path is: ");
+          res.push_str(s);
+          res
+        }
+
+
+      #[get("/some_path/<file..>")]
+      fn files(file: PathBuf) -> Option<NamedFile> {
+        NamedFile::open(Path::new("static/").join(file)).ok()
+      }
+
+
+
+
+  query strings
+    Query segments can be declared static or dynamic 
+    example: wave and <name> in the path "/hello?wave&<name>" 
+             matches any GET request to /hello that has at least one "query key" of name and a "query segment" of wave in any order, ignoring any extra query segments.
+  
+            /hello?name=John&wave (reordered)
+            /hello?name=John&wave&id=123 (extra segments)
+            /hello?name=Bob&name=John&wave (last value taken,, name = John)
+
+    query segment can be of any type, including your own, as long as the type implements the "FromFormValue trait".
+
+    Optional Parameters
+      https://rocket.rs/v0.4/guide/requests/#optional-parameters
+      #[get("/hello?wave&<name>")]
+      fn hello(name: Option<&RawStr>) -> String {...}
+    
+    Query guards
+      https://rocket.rs/v0.4/guide/requests/#multiple-segments_1
+      As with paths, you can also match against multiple segments in a query by using <param..>
+      The type of such parameters, must implement the FromQuery trait. 
+
+      While you can implement FromQuery yourself, most use cases will be handled by using the Form or LenientForm query guard.
+
+**************************************************************************
+* Basically all parameters to Rocket handlers that aren’t named parts of *
+* the route are either Request or Data Guards (or State).                *
+**************************************************************************
+
+  Request Guards
+    An input can be identified as a request guard if it is not named in the route attribute nor in the "data"-annotation. 
+    #[get("/<param>")]
+    fn index(a: A) -> String { ... }
+
+    Request guard is a type that represents an arbitrary validation policy. Every type that implements "FromRequest trait" is a request guard.
+    
+    Request guards appear as inputs to handlers. An arbitrary number of request guards can appear as arguments in a route handler. Rocket will automatically invoke the FromRequest implementation for request guards before calling the handler. Rocket only dispatches requests to a handler when all of its guards pass. An input type can be identified as a request guard if it is not named in the route attribute. This is why, for instance, `param` is not a request guard.
+
+
+    Custom Guards# You can implement FromRequest for your own types. https://rocket.rs/v0.4/guide/requests/#custom-guards
+
+    Guard Transparency# When a request guard type can only be created through its FromRequest implementation, and the type is not Copy, the existence of a request guard value provides a type-level proof that the current request has been validated against an arbitrary policy. This provides powerful means of protecting your application against access-control violations by requiring data accessing methods to witness a proof of authorization via a request guard. We call the notion of using a request guard as a witness guard transparency. https://rocket.rs/v0.4/guide/requests/#guard-transparency
+
+    Forwarding Guards# https://rocket.rs/v0.4/guide/requests/#forwarding-guards
+
+
+        ?????
+  Cookies
+    Cookies is an important, built-in request guard: it allows you to get, set, and remove cookies. Because Cookies is a request guard, an argument of its type can simply be added to a handler.
+    The cookies example on GitHub(examples\cookies\) illustrates further use of the Cookies type. 
+
+    Private Cookies
+      Private cookies are just like regular cookies except that they are encrypted using authenticated encryption. This means that private cookies cannot be inspected, tampered with, or manufactured by clients. 
+      The API for retrieving, adding, and removing private cookies is identical except methods are suffixed with _private. These methods are: get_private, add_private, and remove_private. 
+  
+  One-At-A-Time 
+    For safety reasons, Rocket currently requires that at most one Cookies instance be active at a time.
+    A common error is to have a handler that uses a "Cookies request guard" as well as a "Custom request guard" that retrieves Cookies, as so:
+      #[get("/")]
+      fn bad(cookies: Cookies, custom: Custom) { .. }
+    Because the cookies guard will fire before the custom guard, the custom guard will retrieve an instance of Cookies when one already exists for cookies. This scenario can be fixed by simply swapping the order of the guards:
+      #[get("/")]
+      fn good(custom: Custom, cookies: Cookies) { .. }
+
+  Secret Key
+    To encrypt private cookies, Rocket uses the 256-bit key specified in the secret_key configuration parameter. If one is not specified, Rocket will automatically generate a fresh key. 
+    Note, however, that a private cookie can only be decrypted with the same key with which it was encrypted...
+    Generating a string suitable for use as a secret_key configuration value is usually done through tools like openssl. 
+    "$ openssl rand -base64 32".
+
+
+  Data guard
+    To indicate that a handler expects body data, annotate it with data = "<param>", where param is an argument in the handler. The argument's type must implement the "FromData trait". 
+
+      #[post("/", data = "<input>")]
+      fn new(input: T) -> String { ... }
+
+  Forms
+    Consider a form that contains two fields: complete, a checkbox, and description, a text field. You can easily handle the form request in Rocket as follows:
+
+    #[derive(FromForm)]
+    struct Task {             // all members of the "Task" struct, have to implement the FromForm trait.
+      api_type: String,
+      complete: bool,        
+      description: String,
+    }
+
+    #[post("/todo", data = "<task>")]
+    fn new(task: Form<Task>) -> String { ... }
+
+    In the above example the Form type implements the FromData trait (which means it's a data guard), and its generic parameter implements the FromForm trait. FromForm can be derived for any structure whose fields implement FromFormValue. 
+
+    Lenient Parsing
+      A Form<T> will parse successfully from an incoming form only if the form contains the exact set of fields in T. Said another way, a Form<T> will error on missing and/or extra fields. 
+
+      Rocket allows you to opt-out of this behavior via the LenientForm data type. A LenientForm<T> will parse successfully from an incoming form as long as the form contains a superset of the fields in T. Said another way, a LenientForm<T> automatically discards extra fields without error. For instance, if an incoming form contains the fields "a", "b", and "c" while T only contains "a" and "c", the form will parse as LenientForm<T>.
+        #[derive(FromForm)]
+        struct Task { .. }
+
+        #[post("/todo", data = "<task>")]
+        fn new(task: LenientForm<Task>) { .. }
+      
+    Field Renaming
+      By default, Rocket matches the name of an incoming form field to the name of a structure field. While this behavior is typical, it may also be desired to use different names for form fields and struct fields while still parsing as expected.
+
+      As an example, say that an external service POSTs a form with a field named "type". Since type is a reserved keyword in Rust, it cannot be used as the name of a field. To get around this, you can use field renaming as follows:
+
+        #[derive(FromForm)]
+        struct Task {
+          #[form(field = "type")]       // Only this line is added
+          api_type: String,
+          ...
+        }
+        #[post("/todo", data = "<task>")]
+        fn new(task: LenientForm<Task>) { .. }
+
+
+
+  Field Validation https://rocket.rs/v0.4/guide/requests/#field-validation
+    Fields of forms can be easily validated via implementations of the FromFormValue trait.
+    The form validation and form kitchen sink examples provide further illustrations.
+    https://github.com/SergioBenitez/Rocket/tree/v0.4/examples/form_validation
+    https://github.com/SergioBenitez/Rocket/tree/v0.4/examples/form_kitchen_sink
+
+
+
+  Format
+    A route can specify the data format it is willing to accept or respond with by using the format route parameter. For instance, for JSON data, the string application/json.
+      #[post("/user", format = "application/json", data = "<user>")]
+      fn new_user(user: Json<User>) -> T { ... }
+
+      Instead of using the full Content-Type, format = "application/json", you can also write shorthands like format = "json". 
+      list of available shorthands:
+      "any" - ContentType::Any
+      "binary" - ContentType::Binary
+      "html" - ContentType::HTML
+      "plain" - ContentType::Plain
+      "json" - ContentType::JSON
+      "msgpack" - ContentType::MsgPack
+      "form" - ContentType::Form
+      "js" - ContentType::JavaScript
+      "css" - ContentType::CSS
+      "multipart" - ContentType::FormData
+      "xml" - ContentType::XML
+
+
+
+  Rank order 
+    default ranking: from -6 to -1 ,, lower ranks (higher precedence)  https://rocket.rs/v0.4/guide/requests/#default-ranking
+
+    manual ranking
+      #[get("/user/<id>")]
+      fn user(id: usize) -> T { ... }
+
+      #[get("/user/<id>", rank = 2)]
+      fn user_int(id: isize) -> T { ... }
+
+      #[get("/user/<id>", rank = 3)]
+      fn user_str(id: &RawStr) -> T { ... }
+
+  Forwarding
+    Rocket forwards the request to the next matching route (Routes are attempted in increasing rank order), if there is any.
+
+    Forwards can be caught by using a Result or Option type. For example, if the type of id in the user function was Result<usize, &RawStr>, then user would never forward. An "Ok" would indicate that <id> was a valid "usize". The Err's value would contain the string that failed to parse as a usize.
+
+    In general, when any guard fails for any reason, including parameter guards, you can use an Option or Result type in its place to catch the failure.
+  
+
+  JSON
+    Handling JSON data is no harder: simply use the Json type. The only condition is that the generic type in Json implements the Deserialize trait from Serde. 
+
+    #[derive(Deserialize)]
+    struct Task {
+      description: String,
+      complete: bool
+    }
+
+    #[post("/todo", data = "<task>")]
+    fn new(task: Json<Task>) -> String { ... }  
+
+
+  Streaming 
+  https://rocket.rs/v0.4/guide/requests/#streaming
+    Sometimes you just want to handle incoming data directly. For example, you might want to stream the incoming data out to a file. 
+    #[post("/upload", format = "plain", data = "<data>")]
+    fn upload(data: Data) -> io::Result<String> {
+        data.stream_to_file("/tmp/upload.txt").map(|n| n.to_string())
+    }
+
+
+  Error Catchers
+    If any of these conditions occur, Rocket returns an error to the client. To do so, Rocket invokes the catcher corresponding to the error's status code. A catcher is like a route, except it only handles errors. Rocket provides default catchers for all of the standard HTTP error codes. To override a default catcher, or declare a catcher for a custom status code, use the catch attribute.
+      #[catch(404)]
+      fn not_found(req: &Request) -> String {
+          format!("Sorry, '{}' is not a valid path.", req.uri())
+      }
+
+
+
+res
+If you need to serve static files from your Rocket application, consider using the StaticFiles custom handler from rocket_contrib, which makes it as simple as:
+
+rocket.mount("/public", StaticFiles::from("/static")) 

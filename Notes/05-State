@@ -1,0 +1,25 @@
+State
+  Many web applications have a need to maintain state. This can be as simple as maintaining a counter for the number of visits or as complex as needing to access job queues and multiple databases. 
+
+  Managed State
+    as the name implies, is state that Rocket manages for your application. The state is managed on a per-type basis: Rocket will manage at most one value of a given type.
+
+    1-Call manage on the Rocket instance corresponding to your application with the initial value of the state.
+    2-Add a State<T> type to any request handler, where T is the type of the value passed into manage.
+
+    Because Rocket automatically multithreads your application, handlers can concurrently access managed state. As a result, managed state must be thread-safe. Thanks to Rust, this condition is checked at compile-time by ensuring that the type of values you store in managed state implement Send + Sync.
+
+    The manage method can be called any number of times as long as each call refers to a value of a different type. For instance, to have Rocket manage both a HitCount value and a Config value, we can write:
+        rocket::ignite()
+        .manage(HitCount { count: AtomicUsize::new(0) })
+        .manage(Config::from(user_input));
+    
+
+  Retrieving State
+    State that is being managed by Rocket can be retrieved via the State type: a request guard for managed state. To use the request guard, add a State<T> type to any request handler, where T is the type of the managed state. 
+
+  Request-Local State
+    While managed state is global and available application-wide, request-local state is local to a given request, carried along with the request, and dropped once the request is completed.
+
+    
+

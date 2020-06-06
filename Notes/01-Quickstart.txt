@@ -1,0 +1,49 @@
+Quickstart
+
+    Note: Rust provides three distribution channels for Rust: nightly, beta, and stable. Unstable features are only available on nightly Rust.
+
+    Before you can start writing a Rocket application, you'll need a nightly version of Rust installed. 
+        1- If Rust default is already installed, use the tool rustup:
+            "$ rustup default nightly"
+
+            Running this command will install the nightly version of the tools (cargo, rustc, and so on). Also, it will switch the corresponding commands to use the nightly version.
+
+            If you want to go back to the stable version, issue the following command:
+                "$ rustup default stable"
+        2- If Rust is not installed: Install Rust https://doc.rust-lang.org/1.2.0/book/installing-rust.html. 
+
+    If you prefer, once we setup a project directory, you can use per-directory overrides to use the nightly version only for your Rocket project by running the following command:
+        "cd path_to_some_project"
+        "rustup override set nightly"
+
+    The nightly version is updated very frequently, so you might want to update it every week or more often with the command:
+        "$ rustup update"
+
+    Warning: Rocket requires the latest version of Rust nightly.
+            If your Rocket application suddenly stops building, ensure you're using the latest version of Rust nightly and Rocket by updating your toolchain and dependencies with:
+                "rustup update && cargo update"
+
+
+
+The absolute fastest way to start experimenting with Rocket is to clone the Rocket repository and run the included examples in the examples/ directory. For instance, the following set of commands runs the hello_world example:
+
+    git clone https://github.com/SergioBenitez/Rocket
+    cd Rocket
+    git checkout v0.4.2
+    cd examples/hello_world
+    cargo run
+
+
+
+Creating a Project with Cargo
+    1- Start by creating a new binary-based Cargo project and changing into the new directory.
+        "cargo new hello-rocket --bin"  // --bin for binary-based
+        "cd hello-rocket"
+    2- add Rocket as a dependency in your Cargo.toml
+        [dependencies]
+        rocket = "x.x.x"
+    3- Modify src/main.rs so that it contains the code for the Rocket.
+        ...
+    4- Ensure that nightly is the default OR use per-directory overrides to use the nightly version only for this project.
+    5- Visit http://localhost:8000 to see your first Rocket application in action!
+

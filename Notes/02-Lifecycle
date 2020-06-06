@@ -1,0 +1,51 @@
+Rocket Lifecycle
+Rocket's main task is to listen for incoming web requests, dispatch the request to the application code, and return a response to the client. We call the process that goes from request to response the "lifecycle".
+
+  1-Routing
+    Rocket parses an incoming HTTP request into native structures that your code operates on indirectly. Rocket determines which request handler to invoke by matching against route attributes declared in your application.
+
+  2-Validation
+    Rocket validates the incoming request against types and guards present in the matched route. If validation fails, Rocket forwards the request to the next matching route or calls an error handler.
+
+  3-Processing
+    The request handler associated with the route is invoked with validated arguments. This is the main business logic of an application. Processing completes by returning a Response.
+
+  4-Response
+    The returned Response is processed. Rocket generates the appropriate HTTP response and sends it to the client. This completes the lifecycle. Rocket continues listening for requests, restarting the lifecycle for each incoming request.
+
+
+    Routing
+        Rocket applications are centered around routes and handlers. A route is a combination of:
+            #[get("/some_path")]          // <- route attribute
+            fn some_handler() -> &'static str {  // <- request handler
+                // business logic 
+            }
+        route attribute: a set of parameters to match an incoming request against.
+        request handler: a handler to process the request and return a response; which is simply a function.
+
+        The parameters to match against include:
+        static paths, dynamic paths, path segments, forms, query strings, request format specifiers and body data.
+    
+    Mounting
+        Before Rocket can dispatch requests to a route, the route needs to be mounted:
+          //inside main
+          rocket::ignite().mount("/base_path", routes![ some_handler1 , some_handler2,.. ]);
+
+        The mount method takes as input:
+          1- A base path to namespace a list of routes under, here, "/hello".
+          2- A list of routes via the routes! macro: here, routes![world], with multiple routes: routes![a, b, c].
+    
+    Launching
+        The launch method starts up the server and waits for incoming requests. When a request arrives, Rocket finds the matching route and dispatches the request to the route's handler.
+        ... .mount(...).launch();
+
+***************************************************************************************************
+    Notice that:
+        #![feature(proc_macro_hygiene, decl_macro)] 
+          this tells Rust that we're opting in to compiler features available in the nightly release channel. This line must be in the crate root, typically main.rs. 
+
+        #[macro_use] extern crate rocket;
+          this imports the rocket crate and all of its macros into our namespace.
+***************************************************************************************************
+
+        
